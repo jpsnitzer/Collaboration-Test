@@ -20,11 +20,9 @@ When you click the **Knit** button a document will be generated that includes bo
 ```{r cars}
 summary(cars)
 
-<<<<<<< HEAD
-print(200)
-=======
+
 print(8)
->>>>>>> bb3ca8372550fc0c9b255f68db28e6143ea982c3
+
 
 ```
 
