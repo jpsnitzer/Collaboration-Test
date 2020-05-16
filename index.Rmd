@@ -25,7 +25,6 @@ ggplot(data) + geom_point(aes(x=ZipCode, y=MEAN_Total_Time))
 ```{r pressure}
 
 data <- read.csv("data/travel.csv")
-
 ggplot(data) + geom_point(aes(x=ZipCode, y=MEAN_Total_Time))
 
 
