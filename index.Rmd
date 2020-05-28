@@ -15,6 +15,8 @@ library(sf)
 library(sp)
 library(geofacet)
 library(lubridate)
+# remotes::install_github("wilkelab/ggtext")
+library(ggtext)
 mapthm <-  theme(axis.title.x=element_blank(), axis.text.x=element_blank(),
                  axis.ticks.x=element_blank(), axis.title.y=element_blank(),
                  axis.text.y=element_blank(),axis.ticks.y=element_blank(),
@@ -22,51 +24,47 @@ mapthm <-  theme(axis.title.x=element_blank(), axis.text.x=element_blank(),
                  panel.background = element_blank())
 ```
 
-## With Here
+## Time series by state
 
-```{r width=100%, height="1000px", echo=FALSE, warning=FALSE, message=FALSE}
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+### Here we're importing and merging our data
+
 data <- read.csv("data/MPV.csv", header=T)
 data$State <- as.character(data$State)
 df <- read.csv("data/Addresses.csv", header=F)
 colnames(df) <- c("ID","x","y")
 data <- merge(data, df, by="ID")
 data_va <- data[which(data$State == "VA"),]
-
 data_mn <- data[which((data$State %in% c("HI","AK"))==F),]
+
+
+
+### Here we're adding our data to our states shapefile for results
 
 States <- read_sf("data/States/cb_2018_us_state_20m.shp")
 States <- States[which((States$NAME %in% c("Puerto Rico","Hawaii","Alaska")==F)),]
+data_mn[which(data_mn$BodyCamera %in% c("Bystander Video","no","No","Surveillance Video")),"BodyCamera"] <- "No"
+# ggplot() + geom_sf(States, mapping=aes()) + mapthm + geom_point(data_mn[which(data_mn$BodyCamera %in% c("No")),], mapping = aes(x=x, y=y), size=0.5, color="red") + geom_point(data_mn[which(data_mn$BodyCamera %in% c("Yes")),], mapping = aes(x=x, y=y), size=1, color="blue")
 
-# stat_density2d(data_mn, mapping = aes(x=x, y=y), 
-# bins=8, geom='polygon', fill="#2F6690", alpha=0.2, color="#3A7CA5")
 
-data_mn[which(data_mn$BodyCamera %in% 
-                c("Bystander Video","no","No","Surveillance Video")),"BodyCamera"] <- "No"
 
-ggplot() + geom_sf(States, mapping=aes()) + mapthm + 
-  geom_point(data_mn[which(data_mn$BodyCamera %in% c("No")),], 
-             mapping = aes(x=x, y=y), size=0.5, color="red") + 
-  geom_point(data_mn[which(data_mn$BodyCamera %in% c("Yes")),], 
-             mapping = aes(x=x, y=y), size=1, color="blue")
-
+### Here we're extracting the race murder data, by state, by year
 state_cases <- data.frame(data_mn %>% group_by(State) %>% summarise(Killings = length(ID)))
 States2 <- merge(States, state_cases, by.x="STUSPS", by.y="State")
-
 data_mn$Date <- as.Date(data_mn$Date,format="%m/%d/%y")
 data$Date <- as.Date(data$Date,format="%m/%d/%y")
 data$Year <- format(data$Date,"%Y")
-quarter(data$Date)
-
 data$BlackDeath <- 0
 data[which(data$Race=="Black"),"BlackDeath"] <- 1
 data$WhiteDeath <- 0
 data[which(data$Race=="White"),"WhiteDeath"] <- 1
-data_mn2 <- data.frame(data %>% 
+graph_data <- data.frame(data %>% 
                          group_by(State, Year) %>% 
                          summarise(Black = sum(BlackDeath), White = sum(WhiteDeath)))
 
-# Standardizing by race
 
+
+### Standardizing the results by race
 
 for(i in 2013:2019)
 {
@@ -86,30 +84,49 @@ for(i in 2013:2019)
   pops$Black <- as.numeric(as.character(pops$Black))
   pops$State <- state.abb[match(pops$State,state.name)]
   pops[which(pops$StateName=="District of Columbia"),"State"] <- "DC"
-  tempdf <- data_mn2[which(data_mn2$Year==i),]
+  tempdf <- graph_data[which(graph_data$Year==i),]
   tempdf <- merge(tempdf, pops, by="State")
   tempdf$BlackNew <- tempdf$Black.x/tempdf$Black.y*1000000
   tempdf$WhiteNew <- tempdf$White.x/tempdf$White.y*1000000
-  data_mn2[which(data_mn2$Year==i),"Black"] <- tempdf$BlackNew
-  data_mn2[which(data_mn2$Year==i),"White"] <- tempdf$WhiteNew
+  graph_data[which(graph_data$Year==i),"Black"] <- tempdf$BlackNew
+  graph_data[which(graph_data$Year==i),"White"] <- tempdf$WhiteNew
 }
 
-t1 <- textGrob(expression("Concentration of " * phantom(bold("affluence")) * "and" * phantom(bold("poverty")) * " nationwide"),
-               x = 0.5, y = 1.1, gp = gpar(col = "black"))
+#pops$Total <- as.numeric(as.character(pops$Total))
+#pops$BlackPt <- pops$Black/pops$Total*100
+#pops$WhitePt <- pops$White/pops$Total*100
+#pops[order(pops$WhitePt),]
 
 
-ggplot(data_mn2)+
-  geom_line(aes(x=Year,y=Black,group=State), color="red")+
-  geom_line(aes(x=Year,y=White,group=State), color="blue")+
+
+### Graphing the results
+
+AvgDeaths <- data.frame(graph_data %>% 
+             group_by(Year) %>% 
+             summarise(BlackAvg = mean(Black), WhiteAvg = mean(White)))
+graph_data <- merge(graph_data, AvgDeaths, by="Year")
+
+ggplot(graph_data) +
+  geom_line(aes(x=Year,y=BlackAvg,group=State), color="#e63946", alpha=0.8, linetype = "dashed") +
+  geom_line(aes(x=Year,y=WhiteAvg,group=State), color="#457b9d", alpha=0.8, linetype = "dashed") +
+  geom_line(aes(x=Year,y=Black,group=State), color="#e63946") +
+  geom_line(aes(x=Year,y=White,group=State), color="#457b9d") +
   theme_minimal()+
   facet_geo(~State)+
   theme(plot.title=element_text(face="bold",size=rel(1.2)),
-        plot.caption=element_text(hjust=0))+
+        plot.caption=element_text(hjust=0)) + 
+  theme(axis.text.x = element_text(angle = 45, size=6),
+        axis.text.y = element_text(size=6),
+        plot.title = element_markdown(lineheight = 1.1, hjust = 0.5)) +
   labs(x="",y="",
-       subtitle="Blue represents white murders and red represents black murders",
-       title="Murders by Police Officers Per Million, by Race, 2014 - 2019") + 
-  theme(axis.text.x = element_text(angle = 45, size=6))
+       title = "**Murders by Police Officers Per Million, by Race, 2013-2019**  
+    <span style='font-size:11pt'>
+    <span style='color:#457b9d;'>Blue</span>, 
+    represents white murders, and 
+    <span style='color:#e63946;'>red</span>
+    represents black murders")
 
+# height=700, width=876
 ```
 
 
