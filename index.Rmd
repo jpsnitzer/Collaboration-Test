@@ -216,30 +216,56 @@ plot_grid(plotlist = StatesRace, nrow = 2)
 
 
 ```{r echo=FALSE, warning=FALSE, message=FALSE}
-
 data_mn_b <- data_mn[which(data_mn$Race=="Black"),]
 data_mn_w <- data_mn[which(data_mn$Race=="White"),]
 data_mn_h <- data_mn[which(data_mn$Race=="Hispanic"),]
+
+pchIcons <- function(pch = 0:14, width = 30, height = 30, ...) {
+  n <- length(pch)
+  files <- character(n)
+  # create a sequence of png images
+  for (i in seq_len(n)) {
+    f <- tempfile(fileext = ".png")
+    png(f, width = width, height = height, bg = "transparent")
+    par(mar = c(0, 0, 0, 0))
+    plot.new()
+    points(.5, .5, pch = pch[i], cex = min(width, height) / 8, ...)
+    dev.off()
+    files[i] <- f
+  }
+  files
+}
+iconData <- matrix(rnorm(500), ncol = 2)
+res <- kmeans(iconData, 10)
+iconData <- cbind(iconData, res$cluster)
+colnames(iconData) <- c("lat", "lng", "group")
+iconData <- as.data.frame(iconData)
+# 10 random point shapes for the 10 clusters in iconData
+blues <- pchIcons(3, 8, 8, col = "blue", lwd = 2)
+oranges <- pchIcons(3, 8, 8, col = "orange", lwd = 2)
+reds <- pchIcons(3, 8, 8, col = "red", lwd = 2)
 
 leaflet() %>% addTiles() %>%
   addMarkers(lng = data_mn_w$x,
     lat = data_mn_w$y,
     popup = paste(sep = "<br/>",paste("<b><a href='",data_mn_w$Link,"'>",sep=""),
                   data_mn_w$Victim,"</a></b>",data_mn_w$Desc),
-    icon = list(iconUrl = "https://pngimage.net/wp-content/uploads/2018/05/blue-dot-png-2.png", iconSize = c(7,7))
+    icon = list(iconUrl = blues)
   ) %>%
   addMarkers(lng = data_mn_h$x,
     lat = data_mn_h$y,
     popup = paste(sep = "<br/>",paste("<b><a href='",data_mn_h$Link,"'>",sep=""),
                   data_mn_h$Victim,"</a></b>",data_mn_h$Desc),
-    icon = list(iconUrl = "https://i.ya-webdesign.com/images/dot-clipart-orange.png", iconSize = c(7,7))
+    icon = list(iconUrl = oranges)
   ) %>%
   addMarkers(lng = data_mn_b$x,
     lat = data_mn_b$y,
     popup = paste(sep = "<br/>",paste("<b><a href='",data_mn_b$Link,"'>",sep=""),
                   data_mn_b$Victim,"</a></b>",data_mn_b$Desc),
-    icon = list(iconUrl = "https://upload.wikimedia.org/wikipedia/commons/f/f1/Ski_trail_rating_symbol_red_circle.png", iconSize = c(7,7))
+    icon = list(iconUrl = reds)
   )
+
+
 
 ```
 
