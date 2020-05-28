@@ -115,9 +115,12 @@ ggplot(graph_data) +
   facet_geo(~State)+
   theme(plot.title=element_text(face="bold",size=rel(1.2)),
         plot.caption=element_text(hjust=0)) + 
-  theme(axis.text.x = element_text(angle = 45, size=6),
+  theme(axis.text.x = element_blank(),
         axis.text.y = element_text(size=6),
-        plot.title = element_markdown(lineheight = 1.1, hjust = 0.5)) +
+        plot.title = element_markdown(lineheight = 1.1, hjust = 0.5),
+        panel.grid.major = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank()) +
   labs(x="",y="",
        title = "**Murders by Police Officers Per Million, by Race, 2013-2019**  
     <span style='font-size:11pt'>
