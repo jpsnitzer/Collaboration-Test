@@ -1,12 +1,24 @@
 ---
-title: "LGBT Data Visualization"
+title: "Police Violence Project"
+subtitle: "An investigation into inequities"
 author: "Justin Pimentel and Joseph Snitzer"
-date: "5/16/2020"
-output: html_document
+output:
+  tufte::tufte_html: default
+  tufte::tufte_handout:
+    citation_package: natbib
+    latex_engine: xelatex
+  tufte::tufte_book:
+    citation_package: natbib
+    latex_engine: xelatex
+bibliography: skeleton.bib
+link-citations: yes
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+library(tufte)
+# invalidate cache when the tufte version changes
+knitr::opts_chunk$set(tidy = FALSE, cache.extra = packageVersion('tufte'))
+options(htmltools.dir.version = FALSE)
 library(ggplot2)
 library(dplyr)
 library(tidyr)
@@ -21,10 +33,17 @@ mapthm <-  theme(axis.title.x=element_blank(), axis.text.x=element_blank(),
                  axis.ticks.x=element_blank(), axis.title.y=element_blank(),
                  axis.text.y=element_blank(),axis.ticks.y=element_blank(),
                  panel.grid.major = element_blank(),panel.border = element_blank(),
-                 panel.background = element_blank())
+                 plot.background = element_rect(fill = "#FFFFF8", color = NA))
 ```
 
-## Time series by state
+# Time series by state
+
+> "bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla "
+> --- [bla  bla ](https://google.com)
+
+bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla ^[bla bla bla ].
+
+<br>
 
 ```{r echo=FALSE, warning=FALSE, message=FALSE}
 ### Here we're importing and merging our data
@@ -44,7 +63,6 @@ data_mn <- data[which((data$State %in% c("HI","AK"))==F),]
 States <- read_sf("data/States/cb_2018_us_state_20m.shp")
 States <- States[which((States$NAME %in% c("Puerto Rico","Hawaii","Alaska")==F)),]
 data_mn[which(data_mn$BodyCamera %in% c("Bystander Video","no","No","Surveillance Video")),"BodyCamera"] <- "No"
-# ggplot() + geom_sf(States, mapping=aes()) + mapthm + geom_point(data_mn[which(data_mn$BodyCamera %in% c("No")),], mapping = aes(x=x, y=y), size=0.5, color="red") + geom_point(data_mn[which(data_mn$BodyCamera %in% c("Yes")),], mapping = aes(x=x, y=y), size=1, color="blue")
 
 
 
@@ -61,6 +79,10 @@ data[which(data$Race=="White"),"WhiteDeath"] <- 1
 graph_data <- data.frame(data %>% 
                          group_by(State, Year) %>% 
                          summarise(Black = sum(BlackDeath), White = sum(WhiteDeath)))
+AvgDeaths <- data.frame(graph_data %>% group_by(Year) %>% 
+                         summarise(Black = sum(Black), White = sum(White)))
+AvgDeaths$TotalBlack <- NA
+AvgDeaths$TotalWhite <- NA
 
 
 
@@ -90,18 +112,30 @@ for(i in 2013:2019)
   tempdf$WhiteNew <- tempdf$White.x/tempdf$White.y*1000000
   graph_data[which(graph_data$Year==i),"Black"] <- tempdf$BlackNew
   graph_data[which(graph_data$Year==i),"White"] <- tempdf$WhiteNew
+  AvgDeaths[which(AvgDeaths$Year==i),"TotalBlack"] <- 
+    sum(pops[which(pops$StateName!="Puerto Rico"),"Black"])
+  AvgDeaths[which(AvgDeaths$Year==i),"TotalWhite"] <- 
+    sum(pops[which(pops$StateName!="Puerto Rico"),"White"])
 }
 
-
+missing <- data.frame(cbind("State" = rep(unique(graph_data$State),each=length(2013:2019)),
+      "Year" = rep(2013:2019,length(unique(graph_data$State)))))
+graph_data <- merge(missing, graph_data, by=c("State","Year"), all=T)
+graph_data[which(is.na(graph_data$Black)),c("Black","White")] <- 0
 
 ### Graphing the results
 
-AvgDeaths <- data.frame(graph_data %>% 
-             group_by(Year) %>% 
-             summarise(BlackAvg = mean(Black), WhiteAvg = mean(White)))
+AvgDeaths$BlackAvg <- AvgDeaths$Black/AvgDeaths$TotalBlack*1000000
+AvgDeaths$WhiteAvg <- AvgDeaths$White/AvgDeaths$TotalWhite*1000000
+AvgDeaths <- AvgDeaths[,c("Year","BlackAvg","WhiteAvg")]
 graph_data <- merge(graph_data, AvgDeaths, by="Year")
 
-ggplot(graph_data) +
+region <- cbind("State"=state.abb, "Region"=state.division)
+region <- rbind(region, c("DC","3"))
+graph_data <- merge(graph_data, region, by="State")
+
+ggplot(graph_data) + 
+  geom_rect(aes(fill = Region), xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, alpha = 0.075) +
   geom_line(aes(x=Year,y=BlackAvg,group=State), color="#e63946", alpha=0.8, linetype = "dashed") +
   geom_line(aes(x=Year,y=WhiteAvg,group=State), color="#457b9d", alpha=0.8, linetype = "dashed") +
   geom_line(aes(x=Year,y=Black,group=State), color="#e63946") +
@@ -115,29 +149,43 @@ ggplot(graph_data) +
         plot.title = element_markdown(lineheight = 1.1, hjust = 0.5),
         panel.grid.major = element_blank(),
         panel.border = element_blank(),
-        panel.background = element_blank()) +
+        panel.background = element_blank(),
+        legend.position = "none",
+        plot.background = element_rect(fill = "#FFFFF8", color = NA)) +
   labs(x="",y="",
        title = "**Murders by Police Officers Per Million, by Race, 2013-2019**  
-    <span style='font-size:11pt'>
-    <span style='color:#457b9d;'>Blue</span>, 
+    <span style='font-size:10pt'>
+    <span style='color:#457b9d;'>Blue</span>
     represents white murders, and 
     <span style='color:#e63946;'>red</span>
-    represents black murders")
+    represents black murders<br>
+    Dotted lines indicate national averages, and colors indicate regions") +
+  scale_fill_manual(values = c("#ffadad","#ffd6a5","#fdffb6",
+                               "#caffbf","#9bf6ff","#a0c4ff",
+                               "#bdb2ff","#ffc6ff","#e5e5e5"))
 
-# height=700, width=876
+
+```
+
+# Murder Locations
+
+bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla ^[bla bla bla ].
+
+<br>
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+
+ ggplot() + geom_sf(States, mapping=aes()) + 
+   mapthm + 
+   geom_point(data_mn[which(data_mn$BodyCamera %in% c("No")),], 
+              mapping = aes(x=x, y=y), size=0.5, color="red") + 
+   geom_point(data_mn[which(data_mn$BodyCamera %in% c("Yes")),], 
+              mapping = aes(x=x, y=y), size=1, color="blue")
+
 ```
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+```{r bib, include=FALSE}
+# create a bib file for the R packages used in this document
+knitr::write_bib(c('base', 'rmarkdown'), file = 'skeleton.bib')
+```
