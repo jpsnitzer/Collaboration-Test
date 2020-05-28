@@ -185,6 +185,8 @@ bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla 
 ```
 
 
+
+
 ```{r bib, include=FALSE}
 # create a bib file for the R packages used in this document
 knitr::write_bib(c('base', 'rmarkdown'), file = 'skeleton.bib')
