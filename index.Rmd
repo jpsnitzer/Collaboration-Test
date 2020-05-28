@@ -8,25 +8,97 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(leaflet)
+library(sf)
+library(sp)
+library(geofacet)
+library(lubridate)
+mapthm <-  theme(axis.title.x=element_blank(), axis.text.x=element_blank(),
+                 axis.ticks.x=element_blank(), axis.title.y=element_blank(),
+                 axis.text.y=element_blank(),axis.ticks.y=element_blank(),
+                 panel.grid.major = element_blank(),panel.border = element_blank(),
+                 panel.background = element_blank())
 ```
 
 ## With Here
 
-```{r cars}
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+data <- read.csv("data/MPV.csv", header=T)
+data$State <- as.character(data$State)
+df <- read.csv("data/Addresses.csv", header=F)
+colnames(df) <- c("ID","x","y")
+data <- merge(data, df, by="ID")
+data_va <- data[which(data$State == "VA"),]
 
-data <- read.csv(here::here("data/travel.csv"))
+leaflet() %>% addTiles() %>%
+  setView(-79.53113, 37.29248, zoom = 6) %>%
+  addCircleMarkers(
+    lng = data_va$x,
+    lat = data_va$y,
+    label = data_va$Victim
+    )
 
-ggplot(data) + geom_point(aes(x=ZipCode, y=MEAN_Total_Time))
+data_mn <- data[which((data$State %in% c("HI","AK"))==F),]
+
+States <- read_sf("data/States/cb_2018_us_state_20m.shp")
+States <- States[which((States$NAME %in% c("Puerto Rico","Hawaii","Alaska")==F)),]
+
+# stat_density2d(data_mn, mapping = aes(x=x, y=y), 
+# bins=8, geom='polygon', fill="#2F6690", alpha=0.2, color="#3A7CA5")
+
+data_mn[which(data_mn$BodyCamera %in% 
+                c("Bystander Video","no","No","Surveillance Video")),"BodyCamera"] <- "No"
+
+ggplot() + geom_sf(States, mapping=aes()) + mapthm + 
+  geom_point(data_mn[which(data_mn$BodyCamera %in% c("No")),], 
+             mapping = aes(x=x, y=y), size=0.5, color="red") + 
+  geom_point(data_mn[which(data_mn$BodyCamera %in% c("Yes")),], 
+             mapping = aes(x=x, y=y), size=1, color="blue")
+
+state_cases <- data.frame(data_mn %>% group_by(State) %>% summarise(Killings = length(ID)))
+States2 <- merge(States, state_cases, by.x="STUSPS", by.y="State")
+
+data_mn$Date <- as.Date(data_mn$Date,format="%m/%d/%y")
+data$Date <- as.Date(data$Date,format="%m/%d/%y")
+data$Year <- format(data$Date,"%Y")
+quarter(data$Date)
+
+data$BlackDeath <- 0
+data[which(data$Race=="Black"),"BlackDeath"] <- 1
+data$WhiteDeath <- 0
+data[which(data$Race=="White"),"WhiteDeath"] <- 1
+data_mn2 <- data.frame(data %>% group_by(State, Year) %>% summarise(Black = sum(BlackDeath),
+                                                                    White = sum(WhiteDeath)))
+
+ggplot(data_mn2)+
+  geom_line(aes(x=Year,y=Black,group=State), color="red")+
+  geom_line(aes(x=Year,y=White,group=State), color="blue")+
+  theme_minimal()+
+  facet_geo(~State)+
+  theme(plot.title=element_text(face="bold",size=rel(1.2)),
+        plot.caption=element_text(hjust=0))+
+  labs(x="",y="",
+       subtitle="Murders based on data compiled by mappingpoliceviolence.org",
+       title="Murders by Police Officers, 2014 - 2019") + 
+  theme(axis.text.x = element_text(angle = 45, size=6))
+
+
 
 ```
 
-## Without Here
-
-```{r pressure}
-
-data <- read.csv("data/travel.csv")
-ggplot(data) + geom_point(aes(x=ZipCode, y=MEAN_Total_Time))
 
 
-```
+
+
+
+
+
+
+
+
+
+
+
 
