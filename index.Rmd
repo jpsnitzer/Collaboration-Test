@@ -27,13 +27,16 @@ library(sf)
 library(sp)
 library(geofacet)
 library(lubridate)
+library(purrr)
+library(cowplot)
 # remotes::install_github("wilkelab/ggtext")
 library(ggtext)
 mapthm <-  theme(axis.title.x=element_blank(), axis.text.x=element_blank(),
                  axis.ticks.x=element_blank(), axis.title.y=element_blank(),
                  axis.text.y=element_blank(),axis.ticks.y=element_blank(),
-                 panel.grid.major = element_blank(),panel.border = element_blank(),
-                 plot.background = element_rect(fill = "#FFFFF8", color = NA))
+                 panel.grid.major = element_blank(), panel.border = element_blank(),
+                 plot.background = element_rect(fill = "#FFFFF8"),
+                 legend.position = "none")
 ```
 
 # Time series by state
@@ -174,9 +177,7 @@ bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla 
 <br>
 
 ```{r echo=FALSE, warning=FALSE, message=FALSE}
-
- ggplot() + geom_sf(States, mapping=aes()) + 
-   mapthm + 
+ggplot() + geom_sf(States, mapping=aes()) + mapthm + 
    geom_point(data_mn[which(data_mn$BodyCamera %in% c("No")),], 
               mapping = aes(x=x, y=y), size=0.5, color="red") + 
    geom_point(data_mn[which(data_mn$BodyCamera %in% c("Yes")),], 
@@ -185,7 +186,72 @@ bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla 
 ```
 
 
+```{r fig-fullwidth, fig.width = 10, fig.height = 2, echo=FALSE, warning=FALSE, message=FALSE}
+States <- read_sf("data/States/cb_2018_us_state_20m.shp")
+States <- States[which((States$NAME %in% c("Puerto Rico","Hawaii","Alaska")==F)),]
+States <- merge(States, graph_data, by.x = "STUSPS", by.y = "State", all=T)
+StatesRace <- rbind(States, States)
+StatesRace$Value <- NA
+StatesRace$Average <- NA
+StatesRace$Race <- NA
+StatesRace[1:nrow(States),]$Value <- StatesRace[1:nrow(States),]$Black
+StatesRace[(nrow(States)+1):nrow(StatesRace),]$Value <- StatesRace[1:nrow(States),]$White
+StatesRace[1:nrow(States),]$Average <- StatesRace[1:nrow(States),]$BlackAvg
+StatesRace[(nrow(States)+1):nrow(StatesRace),]$Average <- StatesRace[1:nrow(States),]$WhiteAvg
+StatesRace[1:nrow(States),]$Race <- "Black"
+StatesRace[(nrow(States)+1):nrow(StatesRace),]$Race <- "White"
 
+StatesRace <- StatesRace %>% 
+  group_split(Race, Year) %>% 
+  map(
+    ~ggplot(., aes(fill = Value)) + geom_sf() +
+      mapthm +
+      scale_fill_gradient2(midpoint = first(.$Average),
+      low = "green", mid = "white", high = "red") +
+      facet_grid(Race~Year)
+  )
+
+plot_grid(plotlist = StatesRace, nrow = 2)
+```
+
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+
+data_mn_b <- data_mn[which(data_mn$Race=="Black"),]
+data_mn_w <- data_mn[which(data_mn$Race=="White"),]
+data_mn_h <- data_mn[which(data_mn$Race=="Hispanic"),]
+
+leaflet() %>% addTiles() %>%
+  addMarkers(lng = data_mn_w$x,
+    lat = data_mn_w$y,
+    popup = paste(sep = "<br/>",paste("<b><a href='",data_mn_w$Link,"'>",sep=""),
+                  data_mn_w$Victim,"</a></b>",data_mn_w$Desc),
+    icon = list(iconUrl = "https://pngimage.net/wp-content/uploads/2018/05/blue-dot-png-2.png", iconSize = c(7,7))
+  ) %>%
+  addMarkers(lng = data_mn_h$x,
+    lat = data_mn_h$y,
+    popup = paste(sep = "<br/>",paste("<b><a href='",data_mn_h$Link,"'>",sep=""),
+                  data_mn_h$Victim,"</a></b>",data_mn_h$Desc),
+    icon = list(iconUrl = "https://i.ya-webdesign.com/images/dot-clipart-orange.png", iconSize = c(7,7))
+  ) %>%
+  addMarkers(lng = data_mn_b$x,
+    lat = data_mn_b$y,
+    popup = paste(sep = "<br/>",paste("<b><a href='",data_mn_b$Link,"'>",sep=""),
+                  data_mn_b$Victim,"</a></b>",data_mn_b$Desc),
+    icon = list(iconUrl = "https://upload.wikimedia.org/wikipedia/commons/f/f1/Ski_trail_rating_symbol_red_circle.png", iconSize = c(7,7))
+  )
+
+```
+
+
+bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla ^[bla bla bla ].
+
+<br>
+
+
+bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla ^[bla bla bla ].
+
+<br>
 
 ```{r bib, include=FALSE}
 # create a bib file for the R packages used in this document
