@@ -24,21 +24,13 @@ mapthm <-  theme(axis.title.x=element_blank(), axis.text.x=element_blank(),
 
 ## With Here
 
-```{r echo=FALSE, warning=FALSE, message=FALSE}
+```{r width=100%, height="1000px", echo=FALSE, warning=FALSE, message=FALSE}
 data <- read.csv("data/MPV.csv", header=T)
 data$State <- as.character(data$State)
 df <- read.csv("data/Addresses.csv", header=F)
 colnames(df) <- c("ID","x","y")
 data <- merge(data, df, by="ID")
 data_va <- data[which(data$State == "VA"),]
-
-leaflet() %>% addTiles() %>%
-  setView(-79.53113, 37.29248, zoom = 6) %>%
-  addCircleMarkers(
-    lng = data_va$x,
-    lat = data_va$y,
-    label = data_va$Victim
-    )
 
 data_mn <- data[which((data$State %in% c("HI","AK"))==F),]
 
@@ -69,8 +61,42 @@ data$BlackDeath <- 0
 data[which(data$Race=="Black"),"BlackDeath"] <- 1
 data$WhiteDeath <- 0
 data[which(data$Race=="White"),"WhiteDeath"] <- 1
-data_mn2 <- data.frame(data %>% group_by(State, Year) %>% summarise(Black = sum(BlackDeath),
-                                                                    White = sum(WhiteDeath)))
+data_mn2 <- data.frame(data %>% 
+                         group_by(State, Year) %>% 
+                         summarise(Black = sum(BlackDeath), White = sum(WhiteDeath)))
+
+# Standardizing by race
+
+
+for(i in 2013:2019)
+{
+  if(i==2019)
+  {
+    pops <- read.csv(paste("data/RacePop/ACSDT1Y",2018,
+                         ".B02001_data_with_overlays_2020-05-27T221318.csv",sep=""))
+  }
+  else
+  {
+    pops <- read.csv(paste("data/RacePop/ACSDT1Y",i,
+                           ".B02001_data_with_overlays_2020-05-27T221318.csv",sep=""))
+  }
+  pops <- pops[2:nrow(pops),c("NAME","B02001_001E","B02001_002E","B02001_003E")]
+  colnames(pops) <- c("StateName","Total","White","Black")
+  pops$White <- as.numeric(as.character(pops$White))
+  pops$Black <- as.numeric(as.character(pops$Black))
+  pops$State <- state.abb[match(pops$State,state.name)]
+  pops[which(pops$StateName=="District of Columbia"),"State"] <- "DC"
+  tempdf <- data_mn2[which(data_mn2$Year==i),]
+  tempdf <- merge(tempdf, pops, by="State")
+  tempdf$BlackNew <- tempdf$Black.x/tempdf$Black.y*1000000
+  tempdf$WhiteNew <- tempdf$White.x/tempdf$White.y*1000000
+  data_mn2[which(data_mn2$Year==i),"Black"] <- tempdf$BlackNew
+  data_mn2[which(data_mn2$Year==i),"White"] <- tempdf$WhiteNew
+}
+
+t1 <- textGrob(expression("Concentration of " * phantom(bold("affluence")) * "and" * phantom(bold("poverty")) * " nationwide"),
+               x = 0.5, y = 1.1, gp = gpar(col = "black"))
+
 
 ggplot(data_mn2)+
   geom_line(aes(x=Year,y=Black,group=State), color="red")+
@@ -80,11 +106,9 @@ ggplot(data_mn2)+
   theme(plot.title=element_text(face="bold",size=rel(1.2)),
         plot.caption=element_text(hjust=0))+
   labs(x="",y="",
-       subtitle="Murders based on data compiled by mappingpoliceviolence.org",
-       title="Murders by Police Officers, 2014 - 2019") + 
+       subtitle="Blue represents white murders and red represents black murders",
+       title="Murders by Police Officers Per Million, by Race, 2014 - 2019") + 
   theme(axis.text.x = element_text(angle = 45, size=6))
-
-
 
 ```
 
