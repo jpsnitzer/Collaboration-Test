@@ -92,11 +92,6 @@ for(i in 2013:2019)
   graph_data[which(graph_data$Year==i),"White"] <- tempdf$WhiteNew
 }
 
-#pops$Total <- as.numeric(as.character(pops$Total))
-#pops$BlackPt <- pops$Black/pops$Total*100
-#pops$WhitePt <- pops$White/pops$Total*100
-#pops[order(pops$WhitePt),]
-
 
 
 ### Graphing the results
