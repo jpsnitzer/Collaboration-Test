@@ -1,0 +1,290 @@
+---
+title: "Police Violence Project"
+subtitle: "An investigation into inequities"
+author: "Justin Pimentel and Joseph Snitzer"
+output:
+  tufte::tufte_html: default
+  tufte::tufte_handout:
+    citation_package: natbib
+    latex_engine: xelatex
+  tufte::tufte_book:
+    citation_package: natbib
+    latex_engine: xelatex
+bibliography: skeleton.bib
+link-citations: yes
+---
+
+```{r setup, include=FALSE}
+library(tufte)
+# invalidate cache when the tufte version changes
+knitr::opts_chunk$set(tidy = FALSE, cache.extra = packageVersion('tufte'))
+options(htmltools.dir.version = FALSE)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(leaflet)
+library(sf)
+library(sp)
+library(geofacet)
+library(lubridate)
+library(purrr)
+library(cowplot)
+# remotes::install_github("wilkelab/ggtext")
+library(ggtext)
+mapthm <-  theme(axis.title.x=element_blank(), axis.text.x=element_blank(),
+                 axis.ticks.x=element_blank(), axis.title.y=element_blank(),
+                 axis.text.y=element_blank(),axis.ticks.y=element_blank(),
+                 panel.grid.major = element_blank(), panel.border = element_blank(),
+                 plot.background = element_rect(fill = "#FFFFF8"),
+                 legend.position = "none")
+```
+
+# Time series by state
+
+> "bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla "
+> --- [bla  bla ](https://google.com)
+
+bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla ^[bla bla bla ].
+
+<br>
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+### Here we're importing and merging our data
+
+<<<<<<< HEAD
+print(8)
+print(2)
+=======
+data <- read.csv("data/MPV.csv", header=T)
+data$State <- as.character(data$State)
+df <- read.csv("data/Addresses.csv", header=F)
+colnames(df) <- c("ID","x","y")
+data <- merge(data, df, by="ID")
+data_va <- data[which(data$State == "VA"),]
+data_mn <- data[which((data$State %in% c("HI","AK"))==F),]
+>>>>>>> 449ca92e2db79f3ca7a3710fbc57443e03058126
+
+
+
+### Here we're adding our data to our states shapefile for results
+
+States <- read_sf("data/States/cb_2018_us_state_20m.shp")
+States <- States[which((States$NAME %in% c("Puerto Rico","Hawaii","Alaska")==F)),]
+data_mn[which(data_mn$BodyCamera %in% c("Bystander Video","no","No","Surveillance Video")),"BodyCamera"] <- "No"
+
+
+
+### Here we're extracting the race murder data, by state, by year
+state_cases <- data.frame(data_mn %>% group_by(State) %>% summarise(Killings = length(ID)))
+States2 <- merge(States, state_cases, by.x="STUSPS", by.y="State")
+data_mn$Date <- as.Date(data_mn$Date,format="%m/%d/%y")
+data$Date <- as.Date(data$Date,format="%m/%d/%y")
+data$Year <- format(data$Date,"%Y")
+data$BlackDeath <- 0
+data[which(data$Race=="Black"),"BlackDeath"] <- 1
+data$WhiteDeath <- 0
+data[which(data$Race=="White"),"WhiteDeath"] <- 1
+graph_data <- data.frame(data %>% 
+                         group_by(State, Year) %>% 
+                         summarise(Black = sum(BlackDeath), White = sum(WhiteDeath)))
+AvgDeaths <- data.frame(graph_data %>% group_by(Year) %>% 
+                         summarise(Black = sum(Black), White = sum(White)))
+AvgDeaths$TotalBlack <- NA
+AvgDeaths$TotalWhite <- NA
+
+
+
+### Standardizing the results by race
+
+for(i in 2013:2019)
+{
+  if(i==2019)
+  {
+    pops <- read.csv(paste("data/RacePop/ACSDT1Y",2018,
+                         ".B02001_data_with_overlays_2020-05-27T221318.csv",sep=""))
+  }
+  else
+  {
+    pops <- read.csv(paste("data/RacePop/ACSDT1Y",i,
+                           ".B02001_data_with_overlays_2020-05-27T221318.csv",sep=""))
+  }
+  pops <- pops[2:nrow(pops),c("NAME","B02001_001E","B02001_002E","B02001_003E")]
+  colnames(pops) <- c("StateName","Total","White","Black")
+  pops$White <- as.numeric(as.character(pops$White))
+  pops$Black <- as.numeric(as.character(pops$Black))
+  pops$State <- state.abb[match(pops$State,state.name)]
+  pops[which(pops$StateName=="District of Columbia"),"State"] <- "DC"
+  tempdf <- graph_data[which(graph_data$Year==i),]
+  tempdf <- merge(tempdf, pops, by="State")
+  tempdf$BlackNew <- tempdf$Black.x/tempdf$Black.y*1000000
+  tempdf$WhiteNew <- tempdf$White.x/tempdf$White.y*1000000
+  graph_data[which(graph_data$Year==i),"Black"] <- tempdf$BlackNew
+  graph_data[which(graph_data$Year==i),"White"] <- tempdf$WhiteNew
+  AvgDeaths[which(AvgDeaths$Year==i),"TotalBlack"] <- 
+    sum(pops[which(pops$StateName!="Puerto Rico"),"Black"])
+  AvgDeaths[which(AvgDeaths$Year==i),"TotalWhite"] <- 
+    sum(pops[which(pops$StateName!="Puerto Rico"),"White"])
+}
+
+missing <- data.frame(cbind("State" = rep(unique(graph_data$State),each=length(2013:2019)),
+      "Year" = rep(2013:2019,length(unique(graph_data$State)))))
+graph_data <- merge(missing, graph_data, by=c("State","Year"), all=T)
+graph_data[which(is.na(graph_data$Black)),c("Black","White")] <- 0
+
+### Graphing the results
+
+AvgDeaths$BlackAvg <- AvgDeaths$Black/AvgDeaths$TotalBlack*1000000
+AvgDeaths$WhiteAvg <- AvgDeaths$White/AvgDeaths$TotalWhite*1000000
+AvgDeaths <- AvgDeaths[,c("Year","BlackAvg","WhiteAvg")]
+graph_data <- merge(graph_data, AvgDeaths, by="Year")
+
+region <- cbind("State"=state.abb, "Region"=state.division)
+region <- rbind(region, c("DC","3"))
+graph_data <- merge(graph_data, region, by="State")
+
+ggplot(graph_data) + 
+  geom_rect(aes(fill = Region), xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, alpha = 0.075) +
+  geom_line(aes(x=Year,y=BlackAvg,group=State), color="#e63946", alpha=0.8, linetype = "dashed") +
+  geom_line(aes(x=Year,y=WhiteAvg,group=State), color="#457b9d", alpha=0.8, linetype = "dashed") +
+  geom_line(aes(x=Year,y=Black,group=State), color="#e63946") +
+  geom_line(aes(x=Year,y=White,group=State), color="#457b9d") +
+  theme_minimal()+
+  facet_geo(~State)+
+  theme(plot.title=element_text(face="bold",size=rel(1.2)),
+        plot.caption=element_text(hjust=0)) + 
+  theme(axis.text.x = element_blank(),
+        axis.text.y = element_text(size=6),
+        plot.title = element_markdown(lineheight = 1.1, hjust = 0.5),
+        panel.grid.major = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank(),
+        legend.position = "none",
+        plot.background = element_rect(fill = "#FFFFF8", color = NA)) +
+  labs(x="",y="",
+       title = "**Murders by Police Officers Per Million, by Race, 2013-2019**  
+    <span style='font-size:10pt'>
+    <span style='color:#457b9d;'>Blue</span>
+    represents white murders, and 
+    <span style='color:#e63946;'>red</span>
+    represents black murders<br>
+    Dotted lines indicate national averages, and colors indicate regions") +
+  scale_fill_manual(values = c("#ffadad","#ffd6a5","#fdffb6",
+                               "#caffbf","#9bf6ff","#a0c4ff",
+                               "#bdb2ff","#ffc6ff","#e5e5e5"))
+
+
+```
+
+# Murder Locations
+
+bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla ^[bla bla bla ].
+
+<br>
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+ggplot() + geom_sf(States, mapping=aes()) + mapthm + 
+   geom_point(data_mn[which(data_mn$BodyCamera %in% c("No")),], 
+              mapping = aes(x=x, y=y), size=0.5, color="red") + 
+   geom_point(data_mn[which(data_mn$BodyCamera %in% c("Yes")),], 
+              mapping = aes(x=x, y=y), size=1, color="blue")
+
+```
+
+
+```{r fig-fullwidth, fig.width = 10, fig.height = 2, echo=FALSE, warning=FALSE, message=FALSE}
+States <- read_sf("data/States/cb_2018_us_state_20m.shp")
+States <- States[which((States$NAME %in% c("Puerto Rico","Hawaii","Alaska")==F)),]
+States <- merge(States, graph_data, by.x = "STUSPS", by.y = "State", all=T)
+StatesRace <- rbind(States, States)
+StatesRace$Value <- NA
+StatesRace$Average <- NA
+StatesRace$Race <- NA
+StatesRace[1:nrow(States),]$Value <- StatesRace[1:nrow(States),]$Black
+StatesRace[(nrow(States)+1):nrow(StatesRace),]$Value <- StatesRace[1:nrow(States),]$White
+StatesRace[1:nrow(States),]$Average <- StatesRace[1:nrow(States),]$BlackAvg
+StatesRace[(nrow(States)+1):nrow(StatesRace),]$Average <- StatesRace[1:nrow(States),]$WhiteAvg
+StatesRace[1:nrow(States),]$Race <- "Black"
+StatesRace[(nrow(States)+1):nrow(StatesRace),]$Race <- "White"
+
+StatesRace <- StatesRace %>% 
+  group_split(Race, Year) %>% 
+  map(
+    ~ggplot(., aes(fill = Value)) + geom_sf() +
+      mapthm +
+      scale_fill_gradient2(midpoint = first(.$Average),
+      low = "green", mid = "white", high = "red") +
+      facet_grid(Race~Year)
+  )
+
+plot_grid(plotlist = StatesRace, nrow = 2)
+```
+
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+data_mn_b <- data_mn[which(data_mn$Race=="Black"),]
+data_mn_w <- data_mn[which(data_mn$Race=="White"),]
+data_mn_h <- data_mn[which(data_mn$Race=="Hispanic"),]
+
+pchIcons <- function(pch = 0:14, width = 30, height = 30, ...) {
+  n <- length(pch)
+  files <- character(n)
+  # create a sequence of png images
+  for (i in seq_len(n)) {
+    f <- tempfile(fileext = ".png")
+    png(f, width = width, height = height, bg = "transparent")
+    par(mar = c(0, 0, 0, 0))
+    plot.new()
+    points(.5, .5, pch = pch[i], cex = min(width, height) / 8, ...)
+    dev.off()
+    files[i] <- f
+  }
+  files
+}
+iconData <- matrix(rnorm(500), ncol = 2)
+res <- kmeans(iconData, 10)
+iconData <- cbind(iconData, res$cluster)
+colnames(iconData) <- c("lat", "lng", "group")
+iconData <- as.data.frame(iconData)
+# 10 random point shapes for the 10 clusters in iconData
+blues <- pchIcons(3, 8, 8, col = "blue", lwd = 2)
+oranges <- pchIcons(3, 8, 8, col = "orange", lwd = 2)
+reds <- pchIcons(3, 8, 8, col = "red", lwd = 2)
+
+leaflet() %>% addTiles() %>%
+  addMarkers(lng = data_mn_w$x,
+    lat = data_mn_w$y,
+    popup = paste(sep = "<br/>",paste("<b><a href='",data_mn_w$Link,"'>",sep=""),
+                  data_mn_w$Victim,"</a></b>",data_mn_w$Desc),
+    icon = list(iconUrl = blues)
+  ) %>%
+  addMarkers(lng = data_mn_h$x,
+    lat = data_mn_h$y,
+    popup = paste(sep = "<br/>",paste("<b><a href='",data_mn_h$Link,"'>",sep=""),
+                  data_mn_h$Victim,"</a></b>",data_mn_h$Desc),
+    icon = list(iconUrl = oranges)
+  ) %>%
+  addMarkers(lng = data_mn_b$x,
+    lat = data_mn_b$y,
+    popup = paste(sep = "<br/>",paste("<b><a href='",data_mn_b$Link,"'>",sep=""),
+                  data_mn_b$Victim,"</a></b>",data_mn_b$Desc),
+    icon = list(iconUrl = reds)
+  )
+
+
+
+```
+
+
+bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla ^[bla bla bla ].
+
+<br>
+
+
+bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla ^[bla bla bla ].
+
+<br>
+
+```{r bib, include=FALSE}
+# create a bib file for the R packages used in this document
+knitr::write_bib(c('base', 'rmarkdown'), file = 'skeleton.bib')
+```
