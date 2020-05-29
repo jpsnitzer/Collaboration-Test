@@ -251,24 +251,28 @@ leaflet() %>% addTiles() %>%
     popup = paste(sep = "<br/>",paste("<b><a href='",data_mn_w$Link,"'>",sep=""),
                   data_mn_w$Victim,"</a></b>",data_mn_w$Desc),
     icon = list(iconUrl = blues)
-  ) %>%
+  ) 
+```
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+leaflet() %>% addTiles() %>%
   addMarkers(lng = data_mn_h$x,
     lat = data_mn_h$y,
     popup = paste(sep = "<br/>",paste("<b><a href='",data_mn_h$Link,"'>",sep=""),
                   data_mn_h$Victim,"</a></b>",data_mn_h$Desc),
     icon = list(iconUrl = oranges)
-  ) %>%
+  )
+```
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+leaflet() %>% addTiles() %>%
   addMarkers(lng = data_mn_b$x,
     lat = data_mn_b$y,
     popup = paste(sep = "<br/>",paste("<b><a href='",data_mn_b$Link,"'>",sep=""),
                   data_mn_b$Victim,"</a></b>",data_mn_b$Desc),
     icon = list(iconUrl = reds)
   )
-
-
-
 ```
-
 
 bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla ^[bla bla bla ].
 
