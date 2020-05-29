@@ -51,10 +51,6 @@ bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla bla 
 ```{r echo=FALSE, warning=FALSE, message=FALSE}
 ### Here we're importing and merging our data
 
-<<<<<<< HEAD
-print(8)
-print(2)
-=======
 data <- read.csv("data/MPV.csv", header=T)
 data$State <- as.character(data$State)
 df <- read.csv("data/Addresses.csv", header=F)
@@ -62,7 +58,6 @@ colnames(df) <- c("ID","x","y")
 data <- merge(data, df, by="ID")
 data_va <- data[which(data$State == "VA"),]
 data_mn <- data[which((data$State %in% c("HI","AK"))==F),]
->>>>>>> 449ca92e2db79f3ca7a3710fbc57443e03058126
 
 
 
